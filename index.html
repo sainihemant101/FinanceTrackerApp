@@ -997,6 +997,7 @@
 const CLIENT_ID    = '500237263199-1kd20mjpefbudg9kbl7f4ft5amj8lccp.apps.googleusercontent.com';
 const SCOPES       = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 const SHEET_KEY    = 'ft_sheet_id';
+const USER_KEY     = 'ft_user_info';
 const EXP_TAB      = 'Expenses';
 const LEN_TAB      = 'Lending';
 const EXP_HEADERS  = ['Timestamp','Date','Amount','L1 Category','L2 Category','Payment Mode'];
@@ -1057,7 +1058,15 @@ function handleSignIn() {
 }
 
 async function onTokenReceived(response) {
-  if (response.error) { showToast('Sign in failed: ' + response.error, true); return; }
+  if (response.error) {
+    // Silent sign-in failed — show auth screen so user can sign in manually
+    if (response.error === 'interaction_required' || response.error === 'access_denied') {
+      showScreen('auth-screen');
+    } else {
+      showToast('Sign in failed: ' + response.error, true);
+    }
+    return;
+  }
   accessToken = response.access_token;
 
   // get user info
@@ -1066,6 +1075,7 @@ async function onTokenReceived(response) {
       headers: { Authorization: 'Bearer ' + accessToken }
     });
     currentUser = await r.json();
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
     updateUserChip();
   } catch(e) { console.error(e); }
 
@@ -1078,6 +1088,11 @@ async function onTokenReceived(response) {
 }
 
 function updateUserChip() {
+  if (!currentUser) {
+    // Try loading from localStorage (persisted from previous session)
+    const saved = localStorage.getItem(USER_KEY);
+    if (saved) { try { currentUser = JSON.parse(saved); } catch(e) {} }
+  }
   if (!currentUser) return;
   const name = (currentUser.given_name || currentUser.name || 'User').split(' ')[0];
   document.getElementById('user-name-chip').textContent = name;
@@ -1087,6 +1102,7 @@ function updateUserChip() {
 
 function signOut() {
   accessToken = null; currentUser = null;
+  localStorage.removeItem(USER_KEY);
   closeSettings();
   showScreen('auth-screen');
 }
@@ -1846,6 +1862,37 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.remove('open');
   });
+});
+
+/* ════════════════════════════════════════════════════════════════
+   AUTO SIGN-IN ON PAGE LOAD
+   Attempt a silent token refresh so returning users never see
+   the auth screen again. Falls back to auth screen if needed.
+   ════════════════════════════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  // If we have no stored sheet or user, just show auth normally
+  const savedSheet = localStorage.getItem(SHEET_KEY);
+  const savedUser  = localStorage.getItem(USER_KEY);
+  if (!savedSheet && !savedUser) return; // nothing to restore
+
+  // Pre-populate the user chip immediately from cache while token loads
+  updateUserChip();
+
+  // Wait for the GSI library to be ready, then attempt silent token acquisition
+  const tryAutoSignIn = () => {
+    if (typeof google === 'undefined' || !google.accounts) {
+      setTimeout(tryAutoSignIn, 200);
+      return;
+    }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      prompt: '',          // empty string = silent; no popup shown
+      callback: onTokenReceived,
+    });
+    client.requestAccessToken({ prompt: '' });
+  };
+  tryAutoSignIn();
 });
 </script>
 </body>
