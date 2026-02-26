@@ -549,44 +549,9 @@
       #app-screen  { max-width: 480px; margin: 0 auto; }
       .modal       { border-radius: 24px; margin-bottom: 24px; }
     }
-
-    /* ── DEBUG PANEL ─────────────────────────────────────────────── */
-    #debug-panel {
-      display: none;
-      position: fixed; top: 0; left: 0; right: 0;
-      z-index: 9999;
-      background: #0f172a;
-      color: #e2e8f0;
-      font-family: monospace;
-      font-size: 13px;
-      padding: 16px;
-      max-height: 100vh;
-      overflow-y: auto;
-    }
-    #debug-panel.visible { display: block; }
-    #debug-panel h4 { color: #facc15; margin-bottom: 10px; font-size: 14px; }
-    .dbg-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; }
-    .dbg-label { color: #94a3b8; min-width: 110px; flex-shrink: 0; }
-    .dbg-ok   { color: #4ade80; }
-    .dbg-warn { color: #fb923c; }
-    .dbg-err  { color: #f87171; }
-    .dbg-step { color: #a78bfa; font-weight: bold; margin-top: 10px; margin-bottom: 4px; }
-    #debug-close {
-      margin-top: 14px; width: 100%; padding: 10px;
-      background: #1e40af; color: #fff; border: none;
-      border-radius: 8px; font-size: 14px; cursor: pointer;
-    }
   </style>
 </head>
 <body>
-
-<!-- DEBUG PANEL (remove after diagnosis) -->
-<div id="debug-panel">
-  <h4>🔍 Session Debug</h4>
-  <div id="debug-content"></div>
-  <button id="debug-close" onclick="document.getElementById('debug-panel').classList.remove('visible')">Close Debug Panel</button>
-</div>
-
 
 <!-- ══════════════════════════════════════════════════════════════
      AUTH SCREEN
@@ -1130,7 +1095,6 @@ async function onTokenReceived(response) {
   if (response.error) {
     // Silent sign-in failed — show auth screen so user can sign in manually
     if (response.error === 'interaction_required' || response.error === 'access_denied') {
-      showDebugPanel('Step 4 FAIL — GSI error', 'error: ' + response.error + ' (likely 3rd-party cookie block on mobile)');
       showScreen('auth-screen');
     } else {
       showToast('Sign in failed: ' + response.error, true);
@@ -1959,71 +1923,12 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
    Attempt a silent token refresh so returning users never see
    the auth screen again. Falls back to auth screen if needed.
    ════════════════════════════════════════════════════════════════ */
-
-/* ════════════════════════════════════════════════════════════════
-   DEBUG PANEL — remove after diagnosis
-   ════════════════════════════════════════════════════════════════ */
-function showDebugPanel(loadStep, extraInfo) {
-  const panel   = document.getElementById('debug-panel');
-  const content = document.getElementById('debug-content');
-
-  const sheet = localStorage.getItem('ft_sheet_id');
-  const user  = localStorage.getItem('ft_user_info');
-  const tok   = localStorage.getItem('ft_access_token');
-
-  let userEmail = '—', tokenStatus = '', minsLeft = 0;
-  try { userEmail = user ? JSON.parse(user).email : 'MISSING'; } catch(e) { userEmail = 'PARSE ERROR'; }
-  try {
-    if (tok) {
-      const p = JSON.parse(tok);
-      minsLeft = Math.round((p.expiresAt - Date.now()) / 60000);
-      tokenStatus = minsLeft > 0
-        ? `<span class="dbg-ok">FOUND — ${minsLeft} mins left</span>`
-        : `<span class="dbg-err">EXPIRED (${minsLeft} mins ago)</span>`;
-    } else {
-      tokenStatus = '<span class="dbg-err">MISSING</span>';
-    }
-  } catch(e) { tokenStatus = '<span class="dbg-err">PARSE ERROR</span>'; }
-
-  const row = (label, val) =>
-    `<div class="dbg-row"><span class="dbg-label">${label}</span><span>${val}</span></div>`;
-
-  content.innerHTML = `
-    <div class="dbg-step">Step 1 — localStorage</div>
-    ${row('Sheet ID', sheet
-      ? `<span class="dbg-ok">FOUND (${sheet.slice(0,16)}…)</span>`
-      : '<span class="dbg-err">MISSING</span>')}
-    ${row('User', userEmail !== 'MISSING'
-      ? `<span class="dbg-ok">${userEmail}</span>`
-      : '<span class="dbg-err">MISSING</span>')}
-
-    <div class="dbg-step">Step 2 — Cached Token</div>
-    ${row('ft_access_token', tokenStatus)}
-
-    <div class="dbg-step">Step 3 — Page Context</div>
-    ${row('URL', `<span class="dbg-warn" style="word-break:break-all">${location.href.slice(0,80)}</span>`)}
-    ${row('Referrer', `<span class="dbg-warn" style="word-break:break-all">${document.referrer.slice(0,60) || 'none'}</span>`)}
-    ${row('Cookies', navigator.cookieEnabled
-      ? '<span class="dbg-ok">Enabled</span>'
-      : '<span class="dbg-err">DISABLED</span>')}
-    ${row('3rd-party storage', typeof localStorage !== 'undefined'
-      ? '<span class="dbg-ok">localStorage available</span>'
-      : '<span class="dbg-err">UNAVAILABLE</span>')}
-
-    <div class="dbg-step">Step 4 — Load Path Taken</div>
-    ${row('Reached step', `<span class="dbg-warn">${loadStep}</span>`)}
-    ${extraInfo ? row('Detail', `<span class="dbg-warn">${extraInfo}</span>`) : ''}
-  `;
-
-  panel.classList.add('visible');
-}
-
 window.addEventListener('load', () => {
   const savedSheet = localStorage.getItem(SHEET_KEY);
   const savedUser  = localStorage.getItem(USER_KEY);
 
   // No prior session — show auth screen (already active by default)
-  if (!savedSheet && !savedUser) { showDebugPanel('No saved session', 'savedSheet=' + !!savedSheet + ' savedUser=' + !!savedUser); return; }
+  if (!savedSheet && !savedUser) return;
 
   // Show splash while we restore the session
   showScreen('splash-screen');
@@ -2037,18 +1942,15 @@ window.addEventListener('load', () => {
   // of "tap link → already logged in" scenarios.
   const cached = getCachedToken();
   if (cached) {
-    showDebugPanel('Step 2 PASS — used cached token', 'Token valid, loading app');
     accessToken = cached;
     sheetId = localStorage.getItem(SHEET_KEY);
     if (sheetId) { showApp(); } else { showScreen('init-screen'); }
     return;
   }
-  showDebugPanel('Step 2 FAIL — token missing/expired', 'Trying GSI silent refresh...');
 
   // ── Slow path: token missing or expired — attempt GSI silent refresh ──
   // Timeout fallback so the splash screen never hangs forever
   const autoSignInTimeout = setTimeout(() => {
-    showDebugPanel('Step 4 TIMEOUT', 'GSI silent refresh timed out after 8s');
     showScreen('auth-screen');
   }, 8000);
 
