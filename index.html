@@ -6,7 +6,10 @@
   <title>Financial Tracker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>
     /* ── RESET & BASE ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -472,30 +475,7 @@
     .date-range-row { display: flex; gap: 8px; margin-top: 10px; padding: 0 20px; }
     .date-range-row input { font-size: 13px; padding: 9px 12px; }
 
-    /* ── SPLASH / AUTO-LOGIN SCREEN ──────────────────────────────── */
-    #splash-screen {
-      align-items: center; justify-content: center;
-      min-height: 100vh; flex-direction: column; gap: 20px;
-      background: var(--bg);
-    }
-    .splash-logo {
-      width: 64px; height: 64px;
-      background: var(--accent); border-radius: 20px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 30px;
-      box-shadow: 0 4px 24px rgba(0,0,0,.10);
-    }
-    .splash-title { font-size: 20px; font-weight: 600; color: var(--text); }
-    .splash-sub { font-size: 13px; color: var(--text-2); }
-    .splash-spinner {
-      width: 28px; height: 28px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .6s linear infinite;
-    }
-
-    /* ── LOADING SPINNER ──────────────────────────────────────── */
+        /* ── LOADING SPINNER ──────────────────────────────────────── */
     #loading-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(248,248,246,.85);
@@ -514,34 +494,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     #loading-overlay p { font-size: 14px; color: var(--text-2); font-weight: 500; }
 
-    /* ── INIT SHEET SCREEN ────────────────────────────────────── */
-    #init-screen {
-      align-items: center; justify-content: center;
-      min-height: 100vh; padding: 32px 24px;
-    }
-    .init-card {
-      width: 100%; max-width: 360px;
-      background: var(--surface);
-      border-radius: 24px; padding: 40px 32px;
-      box-shadow: var(--shadow-md);
-      border: 1px solid var(--border);
-      text-align: center;
-    }
-    .init-card .init-icon { font-size: 48px; margin-bottom: 16px; }
-    .init-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
-    .init-card p  { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 28px; }
-    .init-steps { text-align: left; margin-bottom: 24px; }
-    .init-step {
-      display: flex; gap: 12px; align-items: flex-start;
-      font-size: 13px; color: var(--text-2); margin-bottom: 12px;
-    }
-    .init-step-num {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: var(--accent); color: #fff;
-      font-size: 11px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 1px;
-    }
+
 
     /* responsive max-width */
     @media (min-width: 480px) {
@@ -549,11 +502,8 @@
       #app-screen  { max-width: 480px; margin: 0 auto; }
       .modal       { border-radius: 24px; margin-bottom: 24px; }
     }
-  </style>
-</head>
-<body>
 
-<!-- ══════════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════════
      AUTH SCREEN
 ══════════════════════════════════════════════════════════════ -->
 <div id="auth-screen" class="screen active">
@@ -566,36 +516,6 @@
       Continue with Google
     </button>
     <p class="auth-note">Your data stays in your Google Drive. We only request permission to create and edit one spreadsheet.</p>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════
-     SPLASH / AUTO-LOGIN SCREEN
-══════════════════════════════════════════════════════════════ -->
-<div id="splash-screen" class="screen">
-  <div class="splash-logo">💰</div>
-  <div class="splash-title">Financial Tracker</div>
-  <div class="splash-sub">Signing you back in…</div>
-  <div class="splash-spinner"></div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════
-     INIT SCREEN (first-time sheet setup)
-══════════════════════════════════════════════════════════════ -->
-<div id="init-screen" class="screen">
-  <div class="init-card">
-    <div class="init-icon">📊</div>
-    <h2>Setting up your tracker</h2>
-    <p>We'll create a Google Sheet in your Drive to store your expenses and lending records.</p>
-    <div class="init-steps">
-      <div class="init-step"><div class="init-step-num">1</div><span>A sheet named "Financial Tracker" will be created in your Google Drive</span></div>
-      <div class="init-step"><div class="init-step-num">2</div><span>Two tabs (Expenses & Lending) with the right columns will be set up</span></div>
-      <div class="init-step"><div class="init-step-num">3</div><span>All your entries stay in your Drive — we never store your data</span></div>
-    </div>
-    <button class="btn btn-primary" onclick="initSheet()">
-      <span class="btn-text">Create My Sheet</span>
-      <span class="dots"><span></span><span></span><span></span></span>
-    </button>
   </div>
 </div>
 
@@ -889,21 +809,11 @@
 
     <div class="settings-row">
       <div>
-        <div class="settings-row-label">Google Sheet</div>
-        <div class="settings-row-sub" id="settings-sheet-id">Not connected</div>
+        <div class="settings-row-label">Data Storage</div>
+        <div class="settings-row-sub">Firestore — cloud synced</div>
       </div>
       <div class="settings-row-action">
-        <button class="btn btn-ghost" style="width:auto;padding:6px 14px;font-size:13px;" onclick="openSheetInDrive()">Open ↗</button>
-      </div>
-    </div>
-
-    <div class="settings-row">
-      <div>
-        <div class="settings-row-label">Reset Sheet Connection</div>
-        <div class="settings-row-sub">Useful if you cleared storage or want to use a different sheet</div>
-      </div>
-      <div class="settings-row-action">
-        <button class="btn btn-ghost" style="width:auto;padding:6px 14px;font-size:13px;color:var(--red);border-color:var(--red);" onclick="resetSheet()">Reset</button>
+        <span class="badge badge-green">Active</span>
       </div>
     </div>
 
@@ -1025,17 +935,27 @@
 
 <script>
 /* ════════════════════════════════════════════════════════════════
-   CONFIG — replace CLIENT_ID with your Google Cloud OAuth Client ID
+   FIREBASE CONFIG & INIT
    ════════════════════════════════════════════════════════════════ */
-const CLIENT_ID    = '500237263199-1kd20mjpefbudg9kbl7f4ft5amj8lccp.apps.googleusercontent.com';
-const SCOPES       = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
-const SHEET_KEY    = 'ft_sheet_id';
-const USER_KEY     = 'ft_user_info';
-const TOKEN_KEY    = 'ft_access_token'; // { token, expiresAt (ms epoch) }
-const EXP_TAB      = 'Expenses';
-const LEN_TAB      = 'Lending';
-const EXP_HEADERS  = ['Timestamp','Date','Amount','L1 Category','L2 Category','Payment Mode'];
-const LEN_HEADERS  = ['Timestamp','Date','Amount','Payment Mode','Receiver','Notes'];
+const firebaseConfig = {
+  apiKey:            "AIzaSyBIBagAgQeeVmFDh-JvBoLZGojN_Arv9vM",
+  authDomain:        "financetrackerapp-c3243.firebaseapp.com",
+  projectId:         "financetrackerapp-c3243",
+  storageBucket:     "financetrackerapp-c3243.firebasestorage.app",
+  messagingSenderId: "139627341506",
+  appId:             "1:139627341506:web:646fd35230b9ff1877fd5b"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+/* ════════════════════════════════════════════════════════════════
+   CONSTANTS
+   ════════════════════════════════════════════════════════════════ */
+const EXP_TAB     = 'Expenses';
+const LEN_TAB     = 'Lending';
+const EXP_HEADERS = ['Timestamp','Date','Amount','L1 Category','L2 Category','Payment Mode'];
+const LEN_HEADERS = ['Timestamp','Date','Amount','Payment Mode','Receiver','Notes'];
 
 /* ════════════════════════════════════════════════════════════════
    L1 → L2 CATEGORY MAP
@@ -1044,13 +964,13 @@ const CATEGORIES = {
   'Grocery':               ['Quick Commerce','Offline'],
   'Transport':             ['Auto-Cab','Petrol'],
   'Flights':               ['BLR-Home flights','Other flights'],
-  'Utility':               ['Electricity Bill','Gas Bill','Repair Works','Others'],
-  'Outing':                ['Restaurant','Food Apps','Office Tea / Snacks','Activity','Other'],
-  'Shopping':              ['Clothes','Electronics','Others'],
-  'Health':                ['Haircut','Medical Checkup','Medicines'],
-  'Internet + Subscription':['Internet','OTT'],
-  'Housing':               ['Rent','Maintenance'],
-  'Insurance':             ['Health Insurance','Others'],
+  'Utility':               ['Electricity','Gas','Water','Others'],
+  'Outing':                ['Dining Out','Cafe','Movies','Others'],
+  'Shopping':              ['Clothes','Electronics','Home','Others'],
+  'Health':                ['Medicine','Doctor','Gym','Others'],
+  'Internet + Subscription':['Mobile','Internet','OTT','Others'],
+  'Housing':               ['Rent','Maintenance','Others'],
+  'Insurance':             ['Health','Vehicle','Life','Others'],
   'Leisure':               ['Trip Expenses','Festive Spends','Home Decors','Others'],
   'Miscellaneous':         ['Others']
 };
@@ -1064,9 +984,7 @@ const CAT_EMOJI = {
 /* ════════════════════════════════════════════════════════════════
    STATE
    ════════════════════════════════════════════════════════════════ */
-let accessToken   = null;
-let currentUser   = null;
-let sheetId       = localStorage.getItem(SHEET_KEY) || null;
+let currentUser   = null;   // Firebase user object
 let allExpenses   = [];
 let allLending    = [];
 let filteredExps  = [];
@@ -1076,134 +994,39 @@ let activeL1Filter = '';
 let charts = {};
 
 /* ════════════════════════════════════════════════════════════════
-   GOOGLE AUTH
+   FIREBASE AUTH
    ════════════════════════════════════════════════════════════════ */
 function handleSignIn() {
-  if (!CLIENT_ID || CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
-    showToast('⚙️ Please set your CLIENT_ID in the config section', true);
-    return;
-  }
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: onTokenReceived,
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err => {
+    showToast('Sign in failed: ' + err.message, true);
   });
-  client.requestAccessToken();
-}
-
-async function onTokenReceived(response) {
-  if (response.error) {
-    // Silent sign-in failed — show auth screen so user can sign in manually
-    if (response.error === 'interaction_required' || response.error === 'access_denied') {
-      showScreen('auth-screen');
-    } else {
-      showToast('Sign in failed: ' + response.error, true);
-    }
-    return;
-  }
-  accessToken = response.access_token;
-
-  // Persist token with expiry so mobile Chrome can reuse it across sessions
-  const expiresIn = (response.expires_in || 3600) * 1000; // ms
-  localStorage.setItem(TOKEN_KEY, JSON.stringify({
-    token: accessToken,
-    expiresAt: Date.now() + expiresIn - 60_000 // 60s safety margin
-  }));
-
-  // get user info
-  try {
-    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: 'Bearer ' + accessToken }
-    });
-    currentUser = await r.json();
-    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
-    updateUserChip();
-  } catch(e) { console.error(e); }
-
-  sheetId = localStorage.getItem(SHEET_KEY);
-  if (sheetId) {
-    showApp();
-  } else {
-    showScreen('init-screen');
-  }
-}
-
-// Returns a valid cached token, or null if missing/expired
-function getCachedToken() {
-  try {
-    const raw = localStorage.getItem(TOKEN_KEY);
-    if (!raw) return null;
-    const { token, expiresAt } = JSON.parse(raw);
-    if (Date.now() < expiresAt) return token;
-    localStorage.removeItem(TOKEN_KEY); // expired — clean up
-    return null;
-  } catch { return null; }
-}
-
-function updateUserChip() {
-  if (!currentUser) {
-    // Try loading from localStorage (persisted from previous session)
-    const saved = localStorage.getItem(USER_KEY);
-    if (saved) { try { currentUser = JSON.parse(saved); } catch(e) {} }
-  }
-  if (!currentUser) return;
-  const name = (currentUser.given_name || currentUser.name || 'User').split(' ')[0];
-  document.getElementById('user-name-chip').textContent = name;
-  document.getElementById('user-avatar').textContent = name[0].toUpperCase();
-  document.getElementById('settings-email').textContent = currentUser.email || '';
 }
 
 function signOut() {
-  accessToken = null; currentUser = null;
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(TOKEN_KEY);
+  auth.signOut();
   closeSettings();
-  showScreen('auth-screen');
 }
 
-/* ════════════════════════════════════════════════════════════════
-   SHEET INITIALIZATION
-   ════════════════════════════════════════════════════════════════ */
-async function initSheet() {
-  const btn = document.querySelector('#init-screen .btn');
-  setButtonLoading(btn, true);
-  showLoading('Creating your sheet...');
-
-  try {
-    // 1. Create spreadsheet
-    const createRes = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
-      method: 'POST',
-      body: JSON.stringify({
-        properties: { title: 'Financial Tracker' },
-        sheets: [
-          { properties: { title: EXP_TAB } },
-          { properties: { title: LEN_TAB } }
-        ]
-      })
-    });
-    sheetId = createRes.spreadsheetId;
-    localStorage.setItem(SHEET_KEY, sheetId);
-
-    // 2. Write headers
-    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
-      method: 'POST',
-      body: JSON.stringify({
-        valueInputOption: 'RAW',
-        data: [
-          { range: `${EXP_TAB}!A1`, values: [EXP_HEADERS] },
-          { range: `${LEN_TAB}!A1`, values: [LEN_HEADERS] }
-        ]
-      })
-    });
-
-    hideLoading();
-    showToast('✅ Sheet created successfully!');
+// Single source of truth — Firebase manages the session automatically
+// This fires on every page load: signed in → load app, signed out → auth screen
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    updateUserChip();
     showApp();
-  } catch(e) {
-    hideLoading();
-    setButtonLoading(btn, false);
-    showToast('Failed to create sheet: ' + e.message, true);
+  } else {
+    currentUser = null;
+    showScreen('auth-screen');
   }
+});
+
+function updateUserChip() {
+  if (!currentUser) return;
+  const name = (currentUser.displayName || 'User').split(' ')[0];
+  document.getElementById('user-name-chip').textContent = name;
+  document.getElementById('user-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('settings-email').textContent = currentUser.email || '';
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1215,7 +1038,6 @@ function showScreen(id) {
 }
 
 async function showApp() {
-  document.getElementById('settings-sheet-id').textContent = sheetId ? sheetId.slice(0,20)+'...' : 'None';
   updateUserChip();
   populateL1Dropdowns();
   populateL1FilterChips();
@@ -1255,14 +1077,10 @@ function setDateDefaults() {
   const minLen   = new Date(today); minLen.setMonth(minLen.getMonth()-24);
 
   const expDate = document.getElementById('exp-date');
-  expDate.value = todayStr;
-  expDate.max   = todayStr;
-  expDate.min   = toDateStr(minExp);
+  expDate.value = todayStr; expDate.max = todayStr; expDate.min = toDateStr(minExp);
 
   const lenDate = document.getElementById('len-date');
-  lenDate.value = todayStr;
-  lenDate.max   = todayStr;
-  lenDate.min   = toDateStr(minLen);
+  lenDate.value = todayStr; lenDate.max = todayStr; lenDate.min = toDateStr(minLen);
 }
 
 function toDateStr(d) {
@@ -1304,11 +1122,13 @@ function populateL2Select(sel, l1) {
 
 function populateL1FilterChips() {
   const strip = document.getElementById('l1-filter-strip');
+  // Avoid duplicating chips on re-render
+  if (strip.children.length > 0) return;
   Object.keys(CATEGORIES).forEach(l1 => {
     const chip = document.createElement('div');
     chip.className = 'filter-chip';
     chip.dataset.l1 = l1;
-    chip.textContent = (CAT_EMOJI[l1]||'') + ' ' + l1;
+    chip.textContent = (CAT_EMOJI[l1]||'')+' '+l1;
     chip.onclick = function() { setL1Filter(this); };
     strip.appendChild(chip);
   });
@@ -1322,31 +1142,20 @@ function setL1Filter(el) {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   DATA LOADING
+   DATA LOADING — Firestore
    ════════════════════════════════════════════════════════════════ */
 async function loadData() {
-  if (!sheetId || !accessToken) return;
+  if (!currentUser) return;
   showLoading('Loading your data...');
   try {
-    const [expRes, lenRes] = await Promise.all([
-      gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${EXP_TAB}!A:F`),
-      gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${LEN_TAB}!A:F`)
+    const uid = currentUser.uid;
+    const [expSnap, lenSnap] = await Promise.all([
+      db.collection('users').doc(uid).collection('expenses').orderBy('date','asc').get(),
+      db.collection('users').doc(uid).collection('lending').orderBy('date','asc').get()
     ]);
 
-    const expRows = (expRes.values || []).slice(1); // skip header
-    const lenRows = (lenRes.values || []).slice(1);
-
-    allExpenses = expRows.map((r,i) => ({
-      rowNum: i+2, // 1-indexed, +1 for header
-      timestamp: r[0]||'', date: r[1]||'', amount: parseFloat(r[2])||0,
-      l1: r[3]||'', l2: r[4]||'', payment: r[5]||''
-    }));
-
-    allLending = lenRows.map((r,i) => ({
-      rowNum: i+2,
-      timestamp: r[0]||'', date: r[1]||'', amount: parseFloat(r[2])||0,
-      payment: r[3]||'', receiver: r[4]||'', notes: r[5]||''
-    }));
+    allExpenses = expSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    allLending  = lenSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     filteredExps = [...allExpenses];
     hideLoading();
@@ -1358,7 +1167,7 @@ async function loadData() {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   DEDUP LOGIC (rank ≤ 1)
+   DEDUP LOGIC
    ════════════════════════════════════════════════════════════════ */
 function deduplicatedExpenses(expenses) {
   const seen = new Map();
@@ -1386,12 +1195,9 @@ function validateExpenseForm() {
     const el  = document.getElementById(f.id);
     const err = document.getElementById(f.errId);
     if (!el.value) {
-      el.classList.add('error');
-      err.classList.add('visible');
-      valid = false;
+      el.classList.add('error'); err.classList.add('visible'); valid = false;
     } else {
-      el.classList.remove('error');
-      err.classList.remove('visible');
+      el.classList.remove('error'); err.classList.remove('visible');
     }
   });
   return valid;
@@ -1408,7 +1214,6 @@ function submitExpense() {
     l2:        document.getElementById('exp-l2').value,
     payment:   document.getElementById('exp-payment').value
   };
-
   if (amount > 100000) {
     pendingExpenseData = data;
     document.getElementById('warn-amount-display').textContent = '₹' + amount.toLocaleString('en-IN');
@@ -1432,8 +1237,9 @@ async function writeExpense(data) {
   const btn = document.getElementById('exp-submit-btn');
   setButtonLoading(btn, true);
   try {
-    await appendRow(EXP_TAB, [data.timestamp, data.date, data.amount, data.l1, data.l2, data.payment]);
-    allExpenses.push({ ...data, rowNum: allExpenses.length + 2 });
+    const uid  = currentUser.uid;
+    const ref  = await db.collection('users').doc(uid).collection('expenses').add(data);
+    allExpenses.push({ id: ref.id, ...data });
     filteredExps = [...allExpenses];
     resetExpenseForm();
     setButtonLoading(btn, false);
@@ -1468,12 +1274,9 @@ function validateLendingForm() {
     const el  = document.getElementById(f.id);
     const err = document.getElementById(f.errId);
     if (!el.value) {
-      el.classList.add('error');
-      err.classList.add('visible');
-      valid = false;
+      el.classList.add('error'); err.classList.add('visible'); valid = false;
     } else {
-      el.classList.remove('error');
-      err.classList.remove('visible');
+      el.classList.remove('error'); err.classList.remove('visible');
     }
   });
   return valid;
@@ -1492,8 +1295,9 @@ async function submitLending() {
     notes:     document.getElementById('len-notes').value.trim()
   };
   try {
-    await appendRow(LEN_TAB, [data.timestamp, data.date, data.amount, data.payment, data.receiver, data.notes]);
-    allLending.push({ ...data, rowNum: allLending.length + 2 });
+    const uid = currentUser.uid;
+    const ref = await db.collection('users').doc(uid).collection('lending').add(data);
+    allLending.push({ id: ref.id, ...data });
     resetLendingForm();
     setButtonLoading(btn, false);
     showToast('✅ Lending entry saved!');
@@ -1537,7 +1341,6 @@ function renderModifyLists() {
 function renderExpenseList() {
   const container = document.getElementById('expense-entry-list');
   const items = filteredExps.slice(0,100).sort((a,b) => b.date.localeCompare(a.date));
-
   if (!items.length) {
     container.innerHTML = '<div class="empty-state"><div class="emoji">📋</div>No entries found</div>';
     return;
@@ -1550,7 +1353,7 @@ function renderExpenseList() {
         <div class="entry-sub">${formatDate(e.date)} · ${e.payment}</div>
       </div>
       <div class="entry-amount">₹${e.amount.toLocaleString('en-IN')}</div>
-      <div class="pencil-btn" onclick="openEditExpense(${e.rowNum})">✏️</div>
+      <div class="pencil-btn" onclick="openEditExpense('${e.id}')">✏️</div>
     </div>
   `).join('');
 }
@@ -1558,7 +1361,6 @@ function renderExpenseList() {
 function renderLendingList() {
   const container = document.getElementById('lending-entry-list');
   const items = [...allLending].sort((a,b) => b.date.localeCompare(a.date));
-
   if (!items.length) {
     container.innerHTML = '<div class="empty-state"><div class="emoji">🤝</div>No lending entries yet</div>';
     return;
@@ -1571,7 +1373,7 @@ function renderLendingList() {
         <div class="entry-sub">${formatDate(l.date)} · ${l.payment}${l.notes?' · '+l.notes:''}</div>
       </div>
       <div class="entry-amount">₹${l.amount.toLocaleString('en-IN')}</div>
-      <div class="pencil-btn" onclick="openEditLending(${l.rowNum})">✏️</div>
+      <div class="pencil-btn" onclick="openEditLending('${l.id}')">✏️</div>
     </div>
   `).join('');
 }
@@ -1579,10 +1381,10 @@ function renderLendingList() {
 /* ════════════════════════════════════════════════════════════════
    EDIT EXPENSE MODAL
    ════════════════════════════════════════════════════════════════ */
-function openEditExpense(rowNum) {
-  const e = allExpenses.find(x => x.rowNum === rowNum);
+function openEditExpense(docId) {
+  const e = allExpenses.find(x => x.id === docId);
   if (!e) return;
-  document.getElementById('edit-exp-row').value     = rowNum;
+  document.getElementById('edit-exp-row').value     = docId;
   document.getElementById('edit-exp-date').value    = e.date;
   document.getElementById('edit-exp-amount').value  = e.amount;
   const l1Sel = document.getElementById('edit-exp-l1');
@@ -1590,13 +1392,10 @@ function openEditExpense(rowNum) {
   updateEditL2();
   document.getElementById('edit-exp-l2').value      = e.l2;
   document.getElementById('edit-exp-payment').value = e.payment;
-
-  // Set date constraints
   const today = new Date();
   const minD  = new Date(today); minD.setMonth(minD.getMonth()-3);
   document.getElementById('edit-exp-date').max = toDateStr(today);
   document.getElementById('edit-exp-date').min = toDateStr(minD);
-
   document.getElementById('edit-expense-modal-overlay').classList.add('open');
 }
 function closeEditExpense() {
@@ -1604,22 +1403,22 @@ function closeEditExpense() {
 }
 
 async function saveEditExpense() {
-  const rowNum  = parseInt(document.getElementById('edit-exp-row').value);
+  const docId   = document.getElementById('edit-exp-row').value;
   const date    = document.getElementById('edit-exp-date').value;
   const amount  = parseFloat(document.getElementById('edit-exp-amount').value);
   const l1      = document.getElementById('edit-exp-l1').value;
   const l2      = document.getElementById('edit-exp-l2').value;
   const payment = document.getElementById('edit-exp-payment').value;
-
   if (!date || !amount || !l1 || !payment) { showToast('Fill all required fields', true); return; }
 
   const btn = document.getElementById('edit-exp-save-btn');
   setButtonLoading(btn, true);
   try {
-    const ts = new Date().toISOString();
-    await updateRow(EXP_TAB, rowNum, [ts, date, amount, l1, l2, payment]);
-    const idx = allExpenses.findIndex(e => e.rowNum === rowNum);
-    if (idx >= 0) allExpenses[idx] = { rowNum, timestamp:ts, date, amount, l1, l2, payment };
+    const ts  = new Date().toISOString();
+    const uid = currentUser.uid;
+    await db.collection('users').doc(uid).collection('expenses').doc(docId).update({ timestamp:ts, date, amount, l1, l2, payment });
+    const idx = allExpenses.findIndex(e => e.id === docId);
+    if (idx >= 0) allExpenses[idx] = { ...allExpenses[idx], timestamp:ts, date, amount, l1, l2, payment };
     filteredExps = [...allExpenses];
     setButtonLoading(btn, false);
     closeEditExpense();
@@ -1634,21 +1433,19 @@ async function saveEditExpense() {
 /* ════════════════════════════════════════════════════════════════
    EDIT LENDING MODAL
    ════════════════════════════════════════════════════════════════ */
-function openEditLending(rowNum) {
-  const l = allLending.find(x => x.rowNum === rowNum);
+function openEditLending(docId) {
+  const l = allLending.find(x => x.id === docId);
   if (!l) return;
-  document.getElementById('edit-len-row').value      = rowNum;
+  document.getElementById('edit-len-row').value      = docId;
   document.getElementById('edit-len-date').value     = l.date;
   document.getElementById('edit-len-amount').value   = l.amount;
   document.getElementById('edit-len-payment').value  = l.payment;
   document.getElementById('edit-len-receiver').value = l.receiver;
   document.getElementById('edit-len-notes').value    = l.notes;
-
   const today = new Date();
   const minD  = new Date(today); minD.setMonth(minD.getMonth()-24);
   document.getElementById('edit-len-date').max = toDateStr(today);
   document.getElementById('edit-len-date').min = toDateStr(minD);
-
   document.getElementById('edit-lending-modal-overlay').classList.add('open');
 }
 function closeEditLending() {
@@ -1656,22 +1453,22 @@ function closeEditLending() {
 }
 
 async function saveEditLending() {
-  const rowNum   = parseInt(document.getElementById('edit-len-row').value);
+  const docId    = document.getElementById('edit-len-row').value;
   const date     = document.getElementById('edit-len-date').value;
   const amount   = parseFloat(document.getElementById('edit-len-amount').value);
   const payment  = document.getElementById('edit-len-payment').value;
   const receiver = document.getElementById('edit-len-receiver').value.trim();
   const notes    = document.getElementById('edit-len-notes').value.trim();
-
   if (!date || !amount || !payment || !receiver) { showToast('Fill all required fields', true); return; }
 
   const btn = document.getElementById('edit-len-save-btn');
   setButtonLoading(btn, true);
   try {
-    const ts = new Date().toISOString();
-    await updateRow(LEN_TAB, rowNum, [ts, date, amount, payment, receiver, notes]);
-    const idx = allLending.findIndex(l => l.rowNum === rowNum);
-    if (idx >= 0) allLending[idx] = { rowNum, timestamp:ts, date, amount, payment, receiver, notes };
+    const ts  = new Date().toISOString();
+    const uid = currentUser.uid;
+    await db.collection('users').doc(uid).collection('lending').doc(docId).update({ timestamp:ts, date, amount, payment, receiver, notes });
+    const idx = allLending.findIndex(l => l.id === docId);
+    if (idx >= 0) allLending[idx] = { ...allLending[idx], timestamp:ts, date, amount, payment, receiver, notes };
     setButtonLoading(btn, false);
     closeEditLending();
     renderLendingList();
@@ -1706,7 +1503,6 @@ function getMonthsBack(n) {
 }
 
 function renderMonthlyChart(expenses) {
-  // last 12 months buckets
   const buckets = {};
   for (let i=11; i>=0; i--) {
     const d = new Date();
@@ -1718,20 +1514,15 @@ function renderMonthlyChart(expenses) {
     const key = e.date.slice(0,7);
     if (key in buckets) buckets[key] += e.amount;
   });
-
   const labels = Object.keys(buckets).map(k => {
     const [y,m] = k.split('-');
     return new Date(+y, +m-1).toLocaleString('en-IN',{month:'short',year:'2-digit'});
   });
   const data = Object.values(buckets);
-
   if (charts.monthly) charts.monthly.destroy();
   charts.monthly = new Chart(document.getElementById('chart-monthly'), {
     type: 'bar',
-    data: {
-      labels,
-      datasets:[{ data, backgroundColor: 'rgba(79,70,229,.75)', borderRadius: 6, borderSkipped: false }]
-    },
+    data: { labels, datasets:[{ data, backgroundColor: 'rgba(79,70,229,.75)', borderRadius: 6, borderSkipped: false }] },
     options: {
       plugins:{ legend:{ display:false } },
       scales:{
@@ -1747,15 +1538,11 @@ function renderDonutChart(expenses) {
   const filtered = expenses.filter(e => e.date >= cutoff);
   const totals = {};
   filtered.forEach(e => { totals[e.l1] = (totals[e.l1]||0) + e.amount; });
-
   const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const labels = sorted.map(x=>x[0]);
   const data   = sorted.map(x=>x[1]);
   const colors = ['#4f46e5','#7c3aed','#db2777','#ea580c','#ca8a04','#16a34a','#0891b2','#dc2626','#65a30d','#9333ea','#2563eb','#d97706'];
-
-  document.getElementById('donut-label').textContent =
-    `Category Breakdown — Last ${activePeriod} Month${activePeriod>1?'s':''}`;
-
+  document.getElementById('donut-label').textContent = `Category Breakdown — Last ${activePeriod} Month${activePeriod>1?'s':''}`;
   if (charts.donut) charts.donut.destroy();
   charts.donut = new Chart(document.getElementById('chart-donut'), {
     type: 'doughnut',
@@ -1768,8 +1555,6 @@ function renderDonutChart(expenses) {
       }
     }
   });
-
-  // custom legend
   const legend = document.getElementById('donut-legend');
   legend.innerHTML = labels.map((l,i) => `
     <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2)">
@@ -1785,15 +1570,11 @@ function renderLendingCharts() {
   const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const labels = sorted.map(x=>x[0]);
   const data   = sorted.map(x=>x[1]);
-
   const isHorizontal = labels.length > 4;
   if (charts.lending) charts.lending.destroy();
   charts.lending = new Chart(document.getElementById('chart-lending'), {
     type: 'bar',
-    data: {
-      labels,
-      datasets:[{ data, backgroundColor:'rgba(22,163,74,.7)', borderRadius:6, borderSkipped:false }]
-    },
+    data: { labels, datasets:[{ data, backgroundColor:'rgba(22,163,74,.7)', borderRadius:6, borderSkipped:false }] },
     options: {
       indexAxis: isHorizontal ? 'y' : 'x',
       plugins:{ legend:{ display:false } },
@@ -1806,7 +1587,6 @@ function renderLendingCharts() {
       }
     }
   });
-
   const tbody = document.getElementById('lending-table-body');
   const empty = document.getElementById('lending-empty');
   if (!sorted.length) {
@@ -1831,49 +1611,6 @@ function openSettings() {
 function closeSettings() {
   document.getElementById('settings-modal-overlay').classList.remove('open');
 }
-function openSheetInDrive() {
-  if (sheetId) window.open(`https://docs.google.com/spreadsheets/d/${sheetId}`, '_blank');
-}
-function resetSheet() {
-  if (!confirm('This will disconnect your current sheet. You can reconnect or create a new one.')) return;
-  localStorage.removeItem(SHEET_KEY);
-  sheetId = null;
-  closeSettings();
-  showScreen('init-screen');
-}
-
-/* ════════════════════════════════════════════════════════════════
-   GOOGLE SHEETS API HELPERS
-   ════════════════════════════════════════════════════════════════ */
-async function gFetch(url, opts = {}) {
-  const res = await fetch(url, {
-    ...opts,
-    headers: {
-      'Authorization': 'Bearer ' + accessToken,
-      'Content-Type': 'application/json',
-      ...(opts.headers || {})
-    }
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err?.error?.message || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-async function appendRow(tab, values) {
-  return gFetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!A:F:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
-    { method: 'POST', body: JSON.stringify({ values: [values] }) }
-  );
-}
-
-async function updateRow(tab, rowNum, values) {
-  return gFetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!A${rowNum}:F${rowNum}?valueInputOption=RAW`,
-    { method: 'PUT', body: JSON.stringify({ values: [values] }) }
-  );
-}
 
 /* ════════════════════════════════════════════════════════════════
    UI HELPERS
@@ -1886,7 +1623,6 @@ function showToast(msg, isError=false) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.className = '', 3000);
 }
-
 function showLoading(msg='Loading...') {
   document.getElementById('loading-text').textContent = msg;
   document.getElementById('loading-overlay').classList.add('show');
@@ -1894,17 +1630,14 @@ function showLoading(msg='Loading...') {
 function hideLoading() {
   document.getElementById('loading-overlay').classList.remove('show');
 }
-
 function setButtonLoading(btn, loading) {
   btn.classList.toggle('submitting', loading);
 }
-
 function formatDate(d) {
   if (!d) return '';
   const [y,m,day] = d.split('-');
   return `${day} ${new Date(+y,+m-1).toLocaleString('en-IN',{month:'short'})} ${y}`;
 }
-
 function formatK(n) {
   if (n >= 100000) return (n/100000).toFixed(1) + 'L';
   if (n >= 1000)   return (n/1000).toFixed(0) + 'k';
@@ -1916,61 +1649,6 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.remove('open');
   });
-});
-
-/* ════════════════════════════════════════════════════════════════
-   AUTO SIGN-IN ON PAGE LOAD
-   Attempt a silent token refresh so returning users never see
-   the auth screen again. Falls back to auth screen if needed.
-   ════════════════════════════════════════════════════════════════ */
-window.addEventListener('load', () => {
-  const savedSheet = localStorage.getItem(SHEET_KEY);
-  const savedUser  = localStorage.getItem(USER_KEY);
-
-  // No prior session — show auth screen (already active by default)
-  if (!savedSheet && !savedUser) return;
-
-  // Show splash while we restore the session
-  showScreen('splash-screen');
-  updateUserChip();
-
-  // ── Fast path: reuse a still-valid cached token ──────────────────
-  // Mobile Chrome blocks third-party cookies so the GSI silent flow
-  // (prompt:'') almost always fails with interaction_required.
-  // Persisting the token in localStorage lets us skip that entirely
-  // for the ~1 hour the token lives, which covers the vast majority
-  // of "tap link → already logged in" scenarios.
-  const cached = getCachedToken();
-  if (cached) {
-    accessToken = cached;
-    sheetId = localStorage.getItem(SHEET_KEY);
-    if (sheetId) { showApp(); } else { showScreen('init-screen'); }
-    return;
-  }
-
-  // ── Slow path: token missing or expired — attempt GSI silent refresh ──
-  // Timeout fallback so the splash screen never hangs forever
-  const autoSignInTimeout = setTimeout(() => {
-    showScreen('auth-screen');
-  }, 8000);
-
-  const tryAutoSignIn = () => {
-    if (typeof google === 'undefined' || !google.accounts) {
-      setTimeout(tryAutoSignIn, 200);
-      return;
-    }
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      prompt: '',          // silent — no popup
-      callback: (response) => {
-        clearTimeout(autoSignInTimeout);
-        onTokenReceived(response);
-      },
-    });
-    client.requestAccessToken({ prompt: '' });
-  };
-  tryAutoSignIn();
 });
 </script>
 </body>
