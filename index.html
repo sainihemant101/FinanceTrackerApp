@@ -1031,6 +1031,7 @@ const CLIENT_ID    = '500237263199-1kd20mjpefbudg9kbl7f4ft5amj8lccp.apps.googleu
 const SCOPES       = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 const SHEET_KEY    = 'ft_sheet_id';
 const USER_KEY     = 'ft_user_info';
+const TOKEN_KEY    = 'ft_access_token'; // { token, expiresAt (ms epoch) }
 const EXP_TAB      = 'Expenses';
 const LEN_TAB      = 'Lending';
 const EXP_HEADERS  = ['Timestamp','Date','Amount','L1 Category','L2 Category','Payment Mode'];
@@ -1102,6 +1103,13 @@ async function onTokenReceived(response) {
   }
   accessToken = response.access_token;
 
+  // Persist token with expiry so mobile Chrome can reuse it across sessions
+  const expiresIn = (response.expires_in || 3600) * 1000; // ms
+  localStorage.setItem(TOKEN_KEY, JSON.stringify({
+    token: accessToken,
+    expiresAt: Date.now() + expiresIn - 60_000 // 60s safety margin
+  }));
+
   // get user info
   try {
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -1120,6 +1128,18 @@ async function onTokenReceived(response) {
   }
 }
 
+// Returns a valid cached token, or null if missing/expired
+function getCachedToken() {
+  try {
+    const raw = localStorage.getItem(TOKEN_KEY);
+    if (!raw) return null;
+    const { token, expiresAt } = JSON.parse(raw);
+    if (Date.now() < expiresAt) return token;
+    localStorage.removeItem(TOKEN_KEY); // expired — clean up
+    return null;
+  } catch { return null; }
+}
+
 function updateUserChip() {
   if (!currentUser) {
     // Try loading from localStorage (persisted from previous session)
@@ -1136,6 +1156,7 @@ function updateUserChip() {
 function signOut() {
   accessToken = null; currentUser = null;
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
   closeSettings();
   showScreen('auth-screen');
 }
@@ -1906,21 +1927,33 @@ window.addEventListener('load', () => {
   const savedSheet = localStorage.getItem(SHEET_KEY);
   const savedUser  = localStorage.getItem(USER_KEY);
 
-  // No prior session — show auth screen directly (already active by default)
+  // No prior session — show auth screen (already active by default)
   if (!savedSheet && !savedUser) return;
 
-  // Returning user: show splash screen instead of auth while we silently re-authenticate
+  // Show splash while we restore the session
   showScreen('splash-screen');
-
-  // Pre-populate the user chip from cache so it's ready when the app loads
   updateUserChip();
 
-  // Timeout fallback: if silent auth takes too long, drop back to auth screen
+  // ── Fast path: reuse a still-valid cached token ──────────────────
+  // Mobile Chrome blocks third-party cookies so the GSI silent flow
+  // (prompt:'') almost always fails with interaction_required.
+  // Persisting the token in localStorage lets us skip that entirely
+  // for the ~1 hour the token lives, which covers the vast majority
+  // of "tap link → already logged in" scenarios.
+  const cached = getCachedToken();
+  if (cached) {
+    accessToken = cached;
+    sheetId = localStorage.getItem(SHEET_KEY);
+    if (sheetId) { showApp(); } else { showScreen('init-screen'); }
+    return;
+  }
+
+  // ── Slow path: token missing or expired — attempt GSI silent refresh ──
+  // Timeout fallback so the splash screen never hangs forever
   const autoSignInTimeout = setTimeout(() => {
     showScreen('auth-screen');
   }, 8000);
 
-  // Wait for the GSI library to be ready, then attempt silent token acquisition
   const tryAutoSignIn = () => {
     if (typeof google === 'undefined' || !google.accounts) {
       setTimeout(tryAutoSignIn, 200);
@@ -1929,7 +1962,7 @@ window.addEventListener('load', () => {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
-      prompt: '',          // empty string = silent; no popup shown
+      prompt: '',          // silent — no popup
       callback: (response) => {
         clearTimeout(autoSignInTimeout);
         onTokenReceived(response);
