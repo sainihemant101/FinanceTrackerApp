@@ -819,6 +819,13 @@
 
     <div class="settings-row">
       <div>
+        <div class="settings-row-label">Your User ID</div>
+        <div class="settings-row-sub" id="settings-uid" style="font-family:monospace;font-size:11px;word-break:break-all;">—</div>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div>
         <div class="settings-row-label">Sign Out</div>
       </div>
       <div class="settings-row-action">
@@ -1027,6 +1034,7 @@ function updateUserChip() {
   document.getElementById('user-name-chip').textContent = name;
   document.getElementById('user-avatar').textContent = name[0].toUpperCase();
   document.getElementById('settings-email').textContent = currentUser.email || '';
+  document.getElementById('settings-uid').textContent = currentUser.uid || '';
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1149,6 +1157,7 @@ async function loadData() {
   showLoading('Loading your data...');
   try {
     const uid = currentUser.uid;
+    console.log('Loading data for uid:', uid);
     const [expSnap, lenSnap] = await Promise.all([
       db.collection('users').doc(uid).collection('expenses').orderBy('date','asc').get(),
       db.collection('users').doc(uid).collection('lending').orderBy('date','asc').get()
@@ -1156,13 +1165,14 @@ async function loadData() {
 
     allExpenses = expSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     allLending  = lenSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('Loaded', allExpenses.length, 'expenses,', allLending.length, 'lending entries');
 
     filteredExps = [...allExpenses];
     hideLoading();
   } catch(e) {
     hideLoading();
-    showToast('Failed to load data', true);
-    console.error(e);
+    console.error('loadData error:', e);
+    showToast('❌ Load failed: ' + e.code + ' — ' + e.message, true);
   }
 }
 
@@ -1237,16 +1247,20 @@ async function writeExpense(data) {
   const btn = document.getElementById('exp-submit-btn');
   setButtonLoading(btn, true);
   try {
+    if (!currentUser) throw new Error('Not signed in');
     const uid  = currentUser.uid;
+    console.log('Writing expense for uid:', uid, data);
     const ref  = await db.collection('users').doc(uid).collection('expenses').add(data);
+    console.log('Expense written, docId:', ref.id);
     allExpenses.push({ id: ref.id, ...data });
     filteredExps = [...allExpenses];
     resetExpenseForm();
     setButtonLoading(btn, false);
     showToast('✅ Expense saved!');
   } catch(e) {
+    console.error('writeExpense error:', e);
     setButtonLoading(btn, false);
-    showToast('Failed to save: ' + e.message, true);
+    showToast('❌ Save failed: ' + e.code + ' — ' + e.message, true);
   }
 }
 
@@ -1621,7 +1635,7 @@ function showToast(msg, isError=false) {
   t.textContent = msg;
   t.className = 'show' + (isError?' error-toast':'');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.className = '', 3000);
+  toastTimer = setTimeout(() => t.className = '', 6000);
 }
 function showLoading(msg='Loading...') {
   document.getElementById('loading-text').textContent = msg;
