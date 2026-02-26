@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financial Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Round">
+    <style>
+        :root {
+            --indigo: #4f46e5;
+            --slate-50: #f8fafc;
+            --slate-900: #0f172a;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background-color: var(--slate-50); 
+            color: var(--slate-900);
+            padding-bottom: 70px; /* Space for bottom nav */
+        }
+        .container { padding: 20px; }
+        /* Simple Tab Navigation placeholder */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; height: 65px;
+            background: white; display: flex; justify-content: space-around;
+            align-items: center; border-top: 1px solid #e2e8f0;
+        }
+        .nav-item { color: #64748b; text-align: center; font-size: 12px; text-decoration: none; }
+        .nav-item.active { color: var(--indigo); }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <header style="display: flex; justify-content: space-between; padding: 20px;">
+            <h2 style="margin:0;">Log Entry</h2>
+            <span class="material-icons-round" id="settings-btn">settings</span>
+        </header>
+        
+        <div class="container" id="main-content">
+            <button id="auth-btn" style="width:100%; padding:15px; border-radius:12px; border:none; background:var(--indigo); color:white; font-weight:600;">
+                Connect Google Account
+            </button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active"><span class="material-icons-round">edit</span><div>Log</div></a>
+        <a href="#" class="nav-item"><span class="material-icons-round">bar_chart</span><div>Analytics</div></a>
+        <a href="#" class="nav-item"><span class="material-icons-round">layers</span><div>Modify</div></a>
+    </nav>
+
+    <script src="https://accounts.google.com/gsi/client" onload="console.log('GIS Loaded')"></script>
+    <script src="https://apis.google.com/js/api.js" onload="console.log('GAPI Loaded')"></script>
+</body>
+</html>
