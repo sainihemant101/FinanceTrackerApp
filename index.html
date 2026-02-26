@@ -472,6 +472,29 @@
     .date-range-row { display: flex; gap: 8px; margin-top: 10px; padding: 0 20px; }
     .date-range-row input { font-size: 13px; padding: 9px 12px; }
 
+    /* ── SPLASH / AUTO-LOGIN SCREEN ──────────────────────────────── */
+    #splash-screen {
+      align-items: center; justify-content: center;
+      min-height: 100vh; flex-direction: column; gap: 20px;
+      background: var(--bg);
+    }
+    .splash-logo {
+      width: 64px; height: 64px;
+      background: var(--accent); border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.10);
+    }
+    .splash-title { font-size: 20px; font-weight: 600; color: var(--text); }
+    .splash-sub { font-size: 13px; color: var(--text-2); }
+    .splash-spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
     /* ── LOADING SPINNER ──────────────────────────────────────── */
     #loading-overlay {
       display: none; position: fixed; inset: 0;
@@ -544,6 +567,16 @@
     </button>
     <p class="auth-note">Your data stays in your Google Drive. We only request permission to create and edit one spreadsheet.</p>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SPLASH / AUTO-LOGIN SCREEN
+══════════════════════════════════════════════════════════════ -->
+<div id="splash-screen" class="screen">
+  <div class="splash-logo">💰</div>
+  <div class="splash-title">Financial Tracker</div>
+  <div class="splash-sub">Signing you back in…</div>
+  <div class="splash-spinner"></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════
@@ -1870,13 +1903,22 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
    the auth screen again. Falls back to auth screen if needed.
    ════════════════════════════════════════════════════════════════ */
 window.addEventListener('load', () => {
-  // If we have no stored sheet or user, just show auth normally
   const savedSheet = localStorage.getItem(SHEET_KEY);
   const savedUser  = localStorage.getItem(USER_KEY);
-  if (!savedSheet && !savedUser) return; // nothing to restore
 
-  // Pre-populate the user chip immediately from cache while token loads
+  // No prior session — show auth screen directly (already active by default)
+  if (!savedSheet && !savedUser) return;
+
+  // Returning user: show splash screen instead of auth while we silently re-authenticate
+  showScreen('splash-screen');
+
+  // Pre-populate the user chip from cache so it's ready when the app loads
   updateUserChip();
+
+  // Timeout fallback: if silent auth takes too long, drop back to auth screen
+  const autoSignInTimeout = setTimeout(() => {
+    showScreen('auth-screen');
+  }, 8000);
 
   // Wait for the GSI library to be ready, then attempt silent token acquisition
   const tryAutoSignIn = () => {
@@ -1888,7 +1930,10 @@ window.addEventListener('load', () => {
       client_id: CLIENT_ID,
       scope: SCOPES,
       prompt: '',          // empty string = silent; no popup shown
-      callback: onTokenReceived,
+      callback: (response) => {
+        clearTimeout(autoSignInTimeout);
+        onTokenReceived(response);
+      },
     });
     client.requestAccessToken({ prompt: '' });
   };
