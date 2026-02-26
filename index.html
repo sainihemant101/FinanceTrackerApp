@@ -1146,6 +1146,7 @@ function showScreen(id) {
 
 async function showApp() {
   document.getElementById('settings-sheet-id').textContent = sheetId ? sheetId.slice(0,20)+'...' : 'None';
+  updateUserChip();
   populateL1Dropdowns();
   populateL1FilterChips();
   setDateDefaults();
@@ -1715,6 +1716,7 @@ function renderLendingCharts() {
   const labels = sorted.map(x=>x[0]);
   const data   = sorted.map(x=>x[1]);
 
+  const isHorizontal = labels.length > 4;
   if (charts.lending) charts.lending.destroy();
   charts.lending = new Chart(document.getElementById('chart-lending'), {
     type: 'bar',
@@ -1723,11 +1725,14 @@ function renderLendingCharts() {
       datasets:[{ data, backgroundColor:'rgba(22,163,74,.7)', borderRadius:6, borderSkipped:false }]
     },
     options: {
-      indexAxis: labels.length > 4 ? 'y' : 'x',
+      indexAxis: isHorizontal ? 'y' : 'x',
       plugins:{ legend:{ display:false } },
-      scales:{
-        x:{ grid:{ color:'#f0efe9' }, ticks:{ font:{size:10}, callback: v => '₹'+formatK(v) } },
+      scales: isHorizontal ? {
+        x:{ grid:{ color:'#f0efe9' }, ticks:{ font:{size:10}, callback: v => '\u20B9'+formatK(v) } },
         y:{ grid:{ display:false }, ticks:{ font:{size:10} } }
+      } : {
+        x:{ grid:{ display:false }, ticks:{ font:{size:10} } },
+        y:{ grid:{ color:'#f0efe9' }, ticks:{ font:{size:10}, callback: v => '\u20B9'+formatK(v) } }
       }
     }
   });
